@@ -1,0 +1,6 @@
+*.pdf binary
+*.pt binary
+*.db binary
+venv/
+__pycache__/
+*.pyc
