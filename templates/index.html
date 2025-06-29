@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<!-- Определяю тип документа как HTML -->
+<html lang="ru">
+<!-- Устанавливаю язык страницы как русский -->
+<head>
+    <!-- Настраиваю кодировку UTF-8 -->
+    <meta charset="UTF-8">
+    <!-- Настраиваю адаптивность для мобильных -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Задаю заголовок страницы -->
+    <title>Учет жирафов в зоопарке</title>
+    <!-- Начинаю секцию стилей -->
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #e0eafc, #cfdef3);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .instruction {
+            color: #7f8c8d;
+            margin-bottom: 25px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .upload-section {
+            margin-bottom: 25px;
+        }
+        #imageInput {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        button {
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: transform 0.2s, background 0.3s;
+            margin: 5px;
+        }
+        button:hover {
+            transform: scale(1.05);
+            background: linear-gradient(90deg, #00c6ff, #0072ff);
+        }
+        #stats {
+            margin-top: 15px;
+            font-size: 20px;
+            text-align: center;
+            transition: color 0.3s;
+        }
+        .success { color: #27ae60; }
+        .error { color: #e74c3c; }
+        .history {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px solid #ddd;
+        }
+        .history h2 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        .history-item {
+            background: #ecf0f1;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .clear-button {
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Создаю основной контейнер -->
+    <div class="container">
+        <!-- Добавляю заголовок -->
+        <h1>Учет жирафов в зоопарке</h1>
+        <!-- Добавляю инструкцию -->
+        <div class="instruction">Выберите файл для обработки</div>
+        <!-- Создаю секцию для загрузки -->
+        <div class="upload-section">
+            <input type="file" id="imageInput" accept="image/*">
+            <br><br>
+            <button onclick="processImage()">Обработать изображение</button>
+        </div>
+        <!-- Создаю блок для отображения статистики -->
+        <div id="stats"></div>
+        <!-- Создаю секцию истории -->
+        <div class="history">
+            <!-- Добавляю заголовок истории -->
+            <h2>История обработок</h2>
+            <!-- Создаю контейнер для списка истории -->
+            <div id="history-list">
+                {% if history %}
+                    {% for item in history %}
+                        <!-- Создаю элемент истории -->
+                        <div class="history-item">
+                            Файл: {{ item[3] }} | {{ item[0] }} ({{ "%.2f"|format(item[2]) }} сек): Обнаружено жирафов - {{ item[1] }}
+                            <br>
+                            <button onclick="downloadPDF('{{ item[0] }}')">Скачать PDF</button>
+                            <button onclick="downloadExcel('{{ item[0] }}')">Скачать Excel</button>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <!-- Добавляю сообщение об отсутствии истории -->
+                    <p>История пуста.</p>
+                {% endif %}
+            </div>
+            <!-- Создаю контейнер для кнопки очистки -->
+            <div class="clear-button">
+                <button onclick="clearHistory()">Очистить историю</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Начинаю секцию JavaScript -->
+    <script>
+        // Создаю функцию обработки изображения
+        async function processImage() {
+            const file = document.getElementById('imageInput').files[0];
+            if (!file) {
+                alert("Пожалуйста, выберите изображение!");
+                return;
+            }
+            const formData = new FormData();
+            formData.append('image', file);
+            const statsDiv = document.getElementById('stats');
+            statsDiv.innerText = "Обработка...";
+            statsDiv.className = '';
+            try {
+                const response = await fetch('/process', { method: 'POST', body: formData });
+                if (!response.ok) {
+                    throw new Error('Ошибка обработки изображения');
+                }
+                const data = await response.json();
+                statsDiv.innerText = `Обнаружено жирафов: ${data.count}`;
+                statsDiv.className = 'success';
+                document.getElementById('imageInput').value = '';
+                await updateHistory();
+            } catch (error) {
+                statsDiv.innerText = `Ошибка: ${error.message}`;
+                statsDiv.className = 'error';
+                document.getElementById('imageInput').value = '';
+            }
+        }
+
+        // Создаю функцию обновления истории
+        async function updateHistory() {
+            const response = await fetch('/get_history');
+            if (response.ok) {
+                const history = await response.json();
+                const historyList = document.getElementById('history-list');
+                historyList.innerHTML = history.length ? '' : '<p>История пуста.</p>';
+                history.forEach(item => {
+                    historyList.innerHTML += `
+                        <div class="history-item">
+                            Файл: ${item[3]} | ${item[0]} (${item[2].toFixed(2)} сек): Обнаружено жирафов - ${item[1]}
+                            <br>
+                            <button onclick="downloadPDF('${item[0]}')">Скачать PDF</button>
+                            <button onclick="downloadExcel('${item[0]}')">Скачать Excel</button>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        // Создаю функцию для скачивания PDF
+        function downloadPDF(timestamp) {
+            window.open(`/download_report/pdf?timestamp=${timestamp}`, '_blank');
+        }
+
+        // Создаю функцию для скачивания Excel
+        function downloadExcel(timestamp) {
+            window.open(`/download_report/excel?timestamp=${timestamp}`, '_blank');
+        }
+
+        // Создаю функцию для очистки истории
+        async function clearHistory() {
+            if (confirm('Вы уверены, что хотите очистить историю?')) {
+                const response = await fetch('/clear_history', { method: 'POST' });
+                if (response.ok) {
+                    await updateHistory();
+                    document.getElementById('stats').innerText = 'История очищена';
+                    document.getElementById('stats').className = 'success';
+                }
+            }
+        }
+
+        // Инициализирую историю при загрузке страницы
+        window.onload = updateHistory;
+    </script>
+</body>
+</html>
