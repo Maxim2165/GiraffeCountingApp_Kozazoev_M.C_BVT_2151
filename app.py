@@ -1,28 +1,28 @@
-from flask import Flask, request, jsonify, render_template, send_file  # Импортирую Flask для создания веб-сервера
-import cv2  # Импортирую OpenCV для работы с изображениями
-import numpy as np  # Импортирую NumPy для работы с массивами
-from ultralytics import YOLO  # Импортирую YOLOv8 для детекции объектов
-import sqlite3  # Импортирую SQLite для базы данных
-from datetime import datetime  # Импортирую datetime для работы с датой и временем
-import json  # Импортирую json для обработки данных
-import os  # Импортирую os для работы с файлами
-from reportlab.lib.pagesizes import letter  # Импортирую размер страницы для PDF
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer  # Импортирую компоненты для создания PDF
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle  # Импортирую стили для PDF
-from reportlab.lib.units import inch  # Импортирую единицы измерения для PDF
-from openpyxl import Workbook  # Импортирую Workbook для работы с Excel
-from openpyxl.styles import Font  # Импортирую Font для стилизации текста в Excel
-import time  # Импортирую time для измерения времени обработки
+from flask import Flask, request, jsonify, render_template, send_file
+import cv2
+import numpy as np
+from ultralytics import YOLO
+import sqlite3
+from datetime import datetime
+import json
+import os
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from openpyxl import Workbook
+from openpyxl.styles import Font
+import time
 
-# Создаю экземпляр Flask для моего веб-сервера
+# Создаю экземпляр Flask для веб-сервера
 app = Flask(__name__)
 
-# Загружаю предобученную модель YOLOv8 для детекции жирафов
+# Загружаю предобученную модель YOLOv8 для детекции объектов
 model = YOLO('yolov8n.pt')
 
 # Определяю путь к файлу базы данных SQLite
 db_path = os.path.join(os.getcwd(), 'history.db')
-# Подключаюсь к базе данных SQLite
+# Подключаюсь к базе данных SQLite с поддержкой многопоточности
 conn = sqlite3.connect(db_path, check_same_thread=False)
 # Создаю курсор для выполнения SQL-запросов
 cursor = conn.cursor()
@@ -52,7 +52,8 @@ def generate_pdf_report(giraffe_count, timestamp, processing_time, filename, gir
     # Определяю путь для сохранения PDF
     pdf_path = os.path.join('static', f'report_{timestamp}.pdf')
     # Создаю документ PDF с заданными размерами и отступами
-    doc = SimpleDocTemplate(pdf_path, pagesize=letter, leftMargin=1.25*inch, rightMargin=1.25*inch, topMargin=1.25*inch, bottomMargin=1.25*inch)
+    doc = SimpleDocTemplate(pdf_path, pagesize=letter, leftMargin=1.25*inch, rightMargin=1.25*inch, 
+                           topMargin=1.25*inch, bottomMargin=1.25*inch)
     # Загружаю базовые стили
     styles = getSampleStyleSheet()
     # Определяю стиль для обычного текста
@@ -64,33 +65,33 @@ def generate_pdf_report(giraffe_count, timestamp, processing_time, filename, gir
     # Указываю путь к обработанному изображению
     img_path = os.path.join('static', 'result.jpg')
     # Создаю список элементов для PDF
-    elements = [Paragraph("Giraffe Detection Report", custom_heading),  # Добавляю заголовок
-                Paragraph(f"File: {filename}", custom_style),  # Добавляю имя файла
-                Paragraph(f"Date and Time: {timestamp}", custom_style),  # Добавляю дату и время
-                Paragraph(f"Processing Time: {processing_time:.2f} sec", custom_style)]  # Добавляю время обработки
+    elements = [Paragraph("Giraffe Detection Report", custom_heading),
+                Paragraph(f"File: {filename}", custom_style),
+                Paragraph(f"Date and Time: {timestamp}", custom_style),
+                Paragraph(f"Processing Time: {processing_time:.2f} sec", custom_style)]
     # Если жирафы есть, добавляю их количество и координаты
     if giraffe_count > 0:
         elements.append(Paragraph(f"Number of Giraffes Detected: {giraffe_count}", custom_style))
         for i, (x, y, w, h) in enumerate(giraffe_details, 1):
             elements.append(Paragraph(f"Giraffe #{i}: Coordinates (x={x:.1f}, y={y:.1f}, width={w:.1f}, height={h:.1f})", custom_style))
     else:
-        elements.append(Paragraph("No giraffes detected or invalid image format", custom_style))  # Сообщение при отсутствии жирафов
+        elements.append(Paragraph("No giraffes detected or invalid image format", custom_style))
     # Если изображение существует, добавляю его
     if os.path.exists(img_path):
-        elements.append(Spacer(1, 12))  # Добавляю отступ
-        elements.append(Paragraph("Processed Image", custom_bold_style))  # Добавляю заголовок изображения
-        img = Image(img_path)  # Загружаю изображение
-        img_width, img_height = img.drawWidth, img.drawHeight  # Получаю размеры изображения
-        max_width, max_height = 400, 600  # Устанавливаю максимальные размеры
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph("Processed Image", custom_bold_style))
+        img = Image(img_path)
+        img_width, img_height = img.drawWidth, img.drawHeight
+        max_width, max_height = 400, 600
         if img_width > max_width or img_height > max_height:
-            ratio = min(max_width / img_width, max_height / img_height)  # Расчитываю коэффициент масштабирования
-            img.drawWidth = img_width * ratio  # Масштабирую ширину
-            img.drawHeight = img_height * ratio  # Масштабирую высоту
-        img.hAlign = 'CENTER'  # Центрирую изображение
-        elements.append(img)  # Добавляю изображение в документ
+            ratio = min(max_width / img_width, max_height / img_height)
+            img.drawWidth = img_width * ratio
+            img.drawHeight = img_height * ratio
+        img.hAlign = 'CENTER'
+        elements.append(img)
     # Собираю и сохраняю PDF
     doc.build(elements)
-    return pdf_path  # Возвращаю путь к созданному PDF
+    return pdf_path
 
 # Функция для генерации Excel-отчета с деталями
 def generate_excel_report(giraffe_count, timestamp, processing_time, filename, giraffe_details):
@@ -122,17 +123,17 @@ def generate_excel_report(giraffe_count, timestamp, processing_time, filename, g
     ws['B4'] = round(processing_time, 2)
     # Если жирафы есть, добавляю их данные
     if giraffe_count > 0:
-        ws['A5'] = "Number of Giraffes"  # Метка для количества
-        ws['B5'] = giraffe_count  # Количество жирафов
+        ws['A5'] = "Number of Giraffes"
+        ws['B5'] = giraffe_count
         for i, (x, y, w, h) in enumerate(giraffe_details, 1):
-            ws[f"A{i+5}"] = f"Giraffe #{i}"  # Номер жирафа
-            ws[f"B{i+5}"] = f"x={x:.1f}, y={y:.1f}, width={w:.1f}, height={h:.1f}"  # Координаты
+            ws[f"A{i+5}"] = f"Giraffe #{i}"
+            ws[f"B{i+5}"] = f"x={x:.1f}, y={y:.1f}, width={w:.1f}, height={h:.1f}"
     else:
-        ws['A5'] = "Status"  # Метка для статуса
-        ws['B5'] = "No giraffes detected or invalid image format"  # Статус при отсутствии жирафов
+        ws['A5'] = "Status"
+        ws['B5'] = "No giraffes detected or invalid image format"
     # Сохраняю файл Excel
     wb.save(excel_path)
-    return excel_path  # Возвращаю путь к созданному Excel
+    return excel_path
 
 # Функция для получения истории обработок
 def get_history():
@@ -144,10 +145,10 @@ def get_history():
     parsed_history = []
     # Прохожу по каждой записи
     for item in history:
-        timestamp, result_json, processing_time, filename = item  # Распаковываю данные
-        result_data = json.loads(result_json)  # Преобразую JSON в данные
-        parsed_history.append((timestamp, result_data['count'], processing_time, filename))  # Добавляю в список
-    return parsed_history  # Возвращаю обработанную историю
+        timestamp, result_json, processing_time, filename = item
+        result_data = json.loads(result_json)
+        parsed_history.append((timestamp, result_data['count'], processing_time, filename))
+    return parsed_history
 
 # Определяю маршрут для главной страницы
 @app.route('/')
@@ -160,14 +161,14 @@ def index():
 # Определяю маршрут для обработки изображения
 @app.route('/process', methods=['POST'])
 def process_image():
-    # Проверяю, есть ли файл в запросе
+    # Проверяю наличие файла в запросе
     if 'image' not in request.files:
         return jsonify(error="No image uploaded"), 400
     # Получаю загруженный файл
     file = request.files['image']
     # Сохраняю имя файла
     filename = file.filename
-    # Проверяю, что файл имеет правильное расширение
+    # Проверяю корректность расширения файла
     if not filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
         return jsonify(error="Invalid file format. Please upload an image (e.g., .png, .jpg, .jpeg)"), 400
     # Читаю данные файла
@@ -177,7 +178,7 @@ def process_image():
         return jsonify(error="Empty file uploaded"), 400
     # Декодирую изображение
     img = cv2.imdecode(np.frombuffer(img_data, np.uint8), cv2.IMREAD_COLOR)
-    # Проверяю, успешно ли декодировано
+    # Проверяю успешность декодирования
     if img is None:
         return jsonify(error="Failed to decode image. Please upload a valid image file"), 400
     # Записываю время начала обработки
@@ -194,8 +195,8 @@ def process_image():
     giraffe_details = []
     # Прохожу по всем обнаруженным объектам
     for box in results[0].boxes:
-        class_id = int(box.cls[0])  # Получаю ID класса
-        class_name = results[0].names[class_id]  # Получаю имя класса
+        class_id = int(box.cls[0])
+        class_name = results[0].names[class_id]
         # Если объект - жираф, добавляю в счетчик и детали
         if class_name == "giraffe":
             giraffe_count += 1
@@ -209,17 +210,17 @@ def process_image():
     result_data = {'count': giraffe_count, 'classes': results[0].names}
     # Добавляю запись в базу данных
     cursor.execute('INSERT INTO requests (timestamp, result, processing_time, filename) VALUES (?, ?, ?, ?)', 
-                  (timestamp, json.dumps(result_data), processing_time, filename))
+                   (timestamp, json.dumps(result_data), processing_time, filename))
     # Сохраняю изменения в базе
     conn.commit()
     # Генерирую PDF-отчет
     pdf_path = generate_pdf_report(giraffe_count, timestamp, processing_time, filename, giraffe_details)
     # Генерирую Excel-отчет
     excel_path = generate_excel_report(giraffe_count, timestamp, processing_time, filename, giraffe_details)
-    # Выводлю пути к созданным отчетам
-    print(f"PDF отчет: {pdf_path}, Excel отчет: {excel_path}")
-    # Возвращаю результат в JSON
-    return jsonify({'count': giraffe_count, 'timestamp': timestamp})
+    # Формирую URL для обработанного изображения с временной меткой для предотвращения кеширования
+    image_url = f"/static/result.jpg?{timestamp}"
+    # Возвращаю результат в JSON с URL изображения
+    return jsonify({'count': giraffe_count, 'timestamp': timestamp, 'image_url': image_url})
 
 # Определяю маршрут для получения истории
 @app.route('/get_history')
@@ -252,25 +253,25 @@ def download_report(report_type):
         cursor.execute('SELECT timestamp, filename FROM requests WHERE timestamp = ?', (timestamp,))
     # Получаю результат
     latest = cursor.fetchone()
-    # Проверяю, есть ли записи
+    # Проверяю наличие записей
     if not latest:
         return "No reports available", 404
     # Распаковываю данные
     timestamp, filename = latest
     # Если запрашивают PDF
     if report_type == 'pdf':
-        file_path = os.path.join('static', f'report_{timestamp}.pdf')  # Путь к PDF
+        file_path = os.path.join('static', f'report_{timestamp}.pdf')
         # Проверяю существование файла и отправляю его
         if os.path.exists(file_path):
             return send_file(file_path, as_attachment=True, download_name=f'report_{filename}.pdf')
-        return "PDF not found", 404  # Ошибка, если PDF не найден
+        return "PDF not found", 404
     # Если запрашивают Excel
     elif report_type == 'excel':
-        file_path = os.path.join('static', f'report_{timestamp}.xlsx')  # Путь к Excel
+        file_path = os.path.join('static', f'report_{timestamp}.xlsx')
         # Проверяю существование файла и отправляю его
         if os.path.exists(file_path):
             return send_file(file_path, as_attachment=True, download_name=f'report_{filename}.xlsx')
-        return "Excel not found", 404  # Ошибка, если Excel не найден
+        return "Excel not found", 404
     # Ошибка при неверном типе отчета
     return "Invalid report type", 400
 

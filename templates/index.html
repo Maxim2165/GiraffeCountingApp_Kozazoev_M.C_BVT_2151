@@ -73,6 +73,17 @@
         }
         .success { color: #27ae60; }
         .error { color: #e74c3c; }
+        #resultImage {
+            max-width: 600px; 
+            width: 100%; 
+            height: auto; 
+            margin-top: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            display: none; 
+            margin-left: auto; 
+            margin-right: auto; 
+        }
         .history {
             margin-top: 25px;
             padding-top: 20px;
@@ -108,8 +119,9 @@
             <br><br>
             <button onclick="processImage()">Обработать изображение</button>
         </div>
-        <!-- Создаю блок для отображения статистики -->
+        <!-- Создаю блок для отображения статистики и изображения -->
         <div id="stats"></div>
+        <img id="resultImage" src="" alt="Обработанное изображение">
         <!-- Создаю секцию истории -->
         <div class="history">
             <!-- Добавляю заголовок истории -->
@@ -150,8 +162,10 @@
             const formData = new FormData();
             formData.append('image', file);
             const statsDiv = document.getElementById('stats');
+            const resultImage = document.getElementById('resultImage');
             statsDiv.innerText = "Обработка...";
             statsDiv.className = '';
+            resultImage.style.display = 'none'; // Скрываю изображение во время обработки
             try {
                 const response = await fetch('/process', { method: 'POST', body: formData });
                 if (!response.ok) {
@@ -160,11 +174,14 @@
                 const data = await response.json();
                 statsDiv.innerText = `Обнаружено жирафов: ${data.count}`;
                 statsDiv.className = 'success';
+                resultImage.src = data.image_url; // Устанавливаю URL обработанного изображения
+                resultImage.style.display = 'block'; // Показываю изображение
                 document.getElementById('imageInput').value = '';
                 await updateHistory();
             } catch (error) {
                 statsDiv.innerText = `Ошибка: ${error.message}`;
                 statsDiv.className = 'error';
+                resultImage.style.display = 'none'; // Скрываю изображение при ошибке
                 document.getElementById('imageInput').value = '';
             }
         }
@@ -207,6 +224,7 @@
                     await updateHistory();
                     document.getElementById('stats').innerText = 'История очищена';
                     document.getElementById('stats').className = 'success';
+                    document.getElementById('resultImage').style.display = 'none'; // Скрываю изображение при очистке
                 }
             }
         }
